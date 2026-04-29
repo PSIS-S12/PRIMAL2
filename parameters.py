@@ -21,14 +21,14 @@ OBSTACLE_DENSITY        = (0, 0.75)  # range of densities   Starting Params of C
 
 DIAG_MVMT               = False  # Diagonal movements allowed?
 a_size                  = 5 + int(DIAG_MVMT) * 4
-NUM_META_AGENTS         = 9
-NUM_IL_META_AGENTS      = 4
+NUM_META_AGENTS         = 1
+NUM_IL_META_AGENTS      = 0
 
-NUM_THREADS             = 8 # int(multiprocessing.cpu_count() / (2 * NUM_META_AGENTS))
+NUM_THREADS             = 2 # int(multiprocessing.cpu_count() / (2 * NUM_META_AGENTS))
 NUM_BUFFERS             = 1  # NO EXPERIENCE REPLAY int(NUM_THREADS / 2)
 
 # training parameters
-SUMMARY_WINDOW          = 10
+SUMMARY_WINDOW          = 1
 load_model              = False
 RESET_TRAINER           = False
 training_version        = 'astar3_continuous_0.5IL_ray2'

@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 import ray
 
 from Ray_ACNet import ACNet
@@ -10,18 +11,12 @@ from parameters import *
 import random
 
 
-ray.init(num_gpus=1)
-
+ray.init(num_cpus=1)
 
 tf.reset_default_graph()
 print("Hello World")
 
-config = tf.ConfigProto(allow_soft_placement = True)
-config.gpu_options.per_process_gpu_memory_fraction = 1.0 / (NUM_META_AGENTS - NUM_IL_META_AGENTS + 1)
-config.gpu_options.allow_growth=True
-
-
-
+config = tf.ConfigProto()
 
 # Create directories
 if not os.path.exists(model_path):
@@ -110,8 +105,8 @@ def writeToTensorBoard(global_summary, tensorboardData, curr_episode, plotMeans=
 
 
     
-def main():    
-    with tf.device("/gpu:0"):
+def main():
+    with tf.device("/cpu:0"):
         trainer = tf.contrib.opt.NadamOptimizer(learning_rate=lr, use_locking=True)
         global_network = ACNet(GLOBAL_NET_SCOPE,a_size,trainer,False,NUM_CHANNEL, OBS_SIZE,GLOBAL_NET_SCOPE, GLOBAL_NETWORK=True)
 
