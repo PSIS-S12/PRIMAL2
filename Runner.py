@@ -54,9 +54,10 @@ class Runner(object):
 
         else:
             # set up tf session
-            config = tf.ConfigProto(allow_soft_placement = True)
-            config.gpu_options.per_process_gpu_memory_fraction = 1.0 / (NUM_META_AGENTS - NUM_IL_META_AGENTS + 1)
-            config.gpu_options.allow_growth=True
+            config = tf.ConfigProto(
+                allow_soft_placement=True,
+                device_count={"GPU": 0}
+            )
 
             self.saver = tf.train.Saver(max_to_keep=1)
             self.coord = tf.train.Coordinator()
@@ -200,7 +201,7 @@ class Runner(object):
         return jobResults, metrics, info
 
 
-@ray.remote(num_cpus=3, num_gpus= 1.0 / (NUM_META_AGENTS - NUM_IL_META_AGENTS + 1))
+@ray.remote(num_cpus=1)
 class RLRunner(Runner):
     def __init__(self, metaAgentID):        
         super().__init__(metaAgentID)
