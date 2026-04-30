@@ -1,6 +1,9 @@
+
 import json
 import os
 import argparse
+import warnings
+import numpy as np
 from PRIMAL2_Observer import PRIMAL2_Observer
 from Observer_Builder import DummyObserver
 import tensorflow as tf
@@ -10,6 +13,49 @@ from Env_Builder import *
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore', category=Warning)
+
+
+
+import json
+import os
+import argparse
+import warnings
+import numpy as np
+from PRIMAL2_Observer import PRIMAL2_Observer
+from Observer_Builder import DummyObserver
+import tensorflow as tf
+from ACNet import ACNet
+from Map_Generator import *
+from Env_Builder import *
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+warnings.filterwarnings('ignore', category=Warning)
+
+
+def _is_movingai_only_maps(maps):
+    """
+    Detect MovingAI-only converter output.
+
+    Supported shapes after np.load(..., allow_pickle=True):
+      - (1, 2, H, W)
+      - or a nested array where maps[0][0] and maps[0][1] are 2D arrays
+    """
+    if not isinstance(maps, np.ndarray):
+        return False
+
+    try:
+        if len(maps) == 1:
+            first = np.array(maps[0])
+            if first.ndim >= 3 and first.shape[0] == 2:
+                return np.array(first[0]).ndim == 2 and np.array(first[1]).ndim == 2
+
+        if len(maps) == 2:
+            return np.array(maps[0]).ndim == 2 and np.array(maps[1]).ndim == 2
+
+    except Exception:
+        return False
+
+    return False
 
 
 class RL_Planner(MAPFEnv):
@@ -114,12 +160,10 @@ class RL_Planner(MAPFEnv):
                 agent_obs = o[agentID]
                 inputs.append(agent_obs[0])
                 goal_pos.append(agent_obs[1])
-            # compute up to LSTM in parallel
             h3_vec = self.sess.run([self.network.h3],
                                    feed_dict={self.network.inputs: inputs,
                                               self.network.goal_pos: goal_pos})
             h3_vec = h3_vec[0]
-            # now go all the way past the lstm sequentially feeding the rnn_state
             for a in range(0, self.num_agents):
                 rnn_state = self.agent_states[a]
                 lstm_output, state = self.sess.run([self.network.rnn_out, self.network.state_out],
@@ -129,7 +173,6 @@ class RL_Planner(MAPFEnv):
                                                               self.network.state_in[1]: rnn_state[1]})
                 rnn_out.append(lstm_output[0])
                 self.agent_states[a] = state
-            # now finish in parallel
             policy_vec = self.sess.run([self.network.policy],
                                        feed_dict={self.network.rnn_out: rnn_out})
             policy_vec = policy_vec[0]
@@ -176,12 +219,12 @@ class RL_Planner(MAPFEnv):
         target_reached = 0
         for agentID in range(1, self.num_agents + 1):
             target_reached += self.world.getDone(agentID)
-        return [target_reached,  # target_reached
-                computing_time_list,  # computing_time_list
-                num_crash,  # num_crash
-                episode_status,  # episode_status
-                episode_status == 'no early stop',  # succeed_episode
-                step_count,  # step_count
+        return [target_reached,
+                computing_time_list,
+                num_crash,
+                episode_status,
+                episode_status == 'no early stop',
+                step_count,
                 frames]
 
 
@@ -230,21 +273,6 @@ class MstarContinuousPlanner(MAPFEnv):
             self.viewer = None
 
     def find_path(self, max_length, saveImage, time_limit=300):
-        """
-        end episode when 1. max_length is reached immediately, or
-                         2. 64 steps after the first timeout, or
-                         3. non-solution occurs immediately
-
-        target_reached      [int ]: num_target that is reached during the episode.
-                                    Affected by timeout or non-solution
-        computing_time_list [list]: a computing time record of each run of M*
-        num_crash           [int ]: zero crash in M* mode
-        episode_status      [str ]: whether the episode is 'succeed', 'timeout' or 'no-solution'
-        succeed_episode     [bool]: whether the episode is successful or not
-        step_count          [int ]: num_step taken during the episode. The 64 timeout step is included
-        frames              [list]: list of GIP frames
-        """
-
         def parse_path(path, step_count):
             on_goal = False
             path_step = 0
@@ -271,7 +299,6 @@ class MstarContinuousPlanner(MAPFEnv):
             succeed = True
             start_time = time.time()
             path = self.expert_until_first_goal(inflation=3.0, time_limit=time_limit / 5.0)
-            # /5 bc we first try C++ M* with 5x less time, then fall back on python if need be where we remultiply by 5
             c_time = time.time() - start_time
             if c_time > time_limit or path is None:
                 succeed = False
@@ -284,11 +311,11 @@ class MstarContinuousPlanner(MAPFEnv):
         while step_count < max_length:
             path_piece, succeed_piece, c_time = compute_path_piece(time_limit)
             computing_time_list.append(c_time)
-            if not succeed_piece:  # no solution, skip out of loop
-                if c_time > time_limit:  # timeout, make a last computation and skip out of the loop
+            if not succeed_piece:
+                if c_time > time_limit:
                     episode_status = 'timeout'
                     break
-                else:  # no solution
+                else:
                     episode_status = 'no-solution'
                     break
             else:
@@ -301,18 +328,6 @@ class MstarContinuousPlanner(MAPFEnv):
 
 
 class ContinuousTestsRunner:
-    """
-    metrics:
-        target_reached      [int ]: num_target that is reached during the episode.
-                                    Affected by timeout or non-solution
-        computing_time_list [list]: a computing time record of each run of M*
-        num_crash           [int ]: number of crash during the episode
-        episode_status      [str ]: whether the episode is 'succeed', 'timeout' or 'no-solution'
-        succeed_episode     [bool]: whether the episode is successful (i.e. no timeout, no non-solution) or not
-        step_count          [int ]: num_step taken during the episode. The 64 timeout step is included
-        frames              [list]: list of GIP frames
-    """
-
     def __init__(self, env_path, result_path, Planner, resume_testing=False, GIF_prob=0.):
         print('starting {}...'.format(self.__class__.__name__))
         self.env_path = env_path
@@ -320,7 +335,6 @@ class ContinuousTestsRunner:
         self.resume_testing = resume_testing
         self.GIF_prob = float(GIF_prob)
         self.worker = Planner
-
         self.test_method = self.worker.method
 
         if not os.path.exists(self.result_path):
@@ -328,7 +342,6 @@ class ContinuousTestsRunner:
 
     def read_single_env(self, name):
         root = self.env_path
-        # assert self.worker.test_type == self.test_type
         assert name.split('.')[-1] == 'npy'
         print('loading a single testing env...')
         if self.resume_testing:
@@ -338,6 +351,32 @@ class ContinuousTestsRunner:
         maps = np.load(root + name, allow_pickle=True)
         return maps
 
+    def _apply_movingai_env(self, maps):
+        """
+        Support a MovingAI-only npy:
+            maps[0][0] -> state_map (2D)
+            maps[0][1] -> goals_map (2D)
+        """
+        state_map = np.array(maps[0][0])
+        goals_map = np.array(maps[0][1])
+
+        self.worker.world = World(
+            map_generator=manual_generator(state_map, goals_map),
+            num_agents=int(np.max(goals_map)),
+            isDiagonal=self.worker.IsDiagonal
+        )
+        self.worker.num_agents = self.worker.world.num_agents
+        self.worker.observer.set_env(self.worker.world)
+        self.worker.fresh = True
+        if self.worker.viewer is not None:
+            self.worker.viewer = None
+
+        self.worker.agent_states = []
+        for _ in range(self.worker.num_agents):
+            self.worker.agent_states.append(self.worker.network.state_init)
+
+
+
     def run_1_test(self, name, maps):
         def get_maxLength(env_size):
             if env_size <= 40:
@@ -346,10 +385,16 @@ class ContinuousTestsRunner:
                 return 192
             return 256
 
-        self.worker._reset(map_generator=manual_generator(maps[0][0], maps[0][1]),
-                           worldInfo=maps)
+        if _is_movingai_only_maps(maps):
+            self._apply_movingai_env(maps)
+            state_shape = np.array(maps[0][0]).shape
+        else:
+            self.worker._reset(map_generator=manual_generator(maps[0][0], maps[0][1]),
+                               worldInfo=maps)
+            state_shape = np.array(maps[0][0]).shape
+
         env_name = name[:name.rfind('.')]
-        env_size = int(env_name[env_name.find("_") + 1:env_name.find("size")])
+        env_size = int(state_shape[0])
         max_length = get_maxLength(env_size)
         results = dict()
 
@@ -396,15 +441,13 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--mapName", default=None, help="single map name for multiprocessing")
     args = parser.parse_args()
 
-    # set a tester--------------------------------------------
     if args.planner == 'mstar':
         print("Starting {} {} tests...".format(args.planner, args.type))
         tester = ContinuousTestsRunner(args.env_path,
                                        args.result_path,
                                        Planner=MstarContinuousPlanner(),
                                        resume_testing=args.resume_testing,
-                                       GIF_prob=args.GIF_prob
-                                       )
+                                       GIF_prob=args.GIF_prob)
 
     elif args.planner == 'RL':
         print("Starting {} {} tests...".format(args.planner, args.type))
@@ -415,11 +458,9 @@ if __name__ == "__main__":
                                            model_path=model_path,
                                            isOneShot=False),
                                        resume_testing=args.resume_testing,
-                                       GIF_prob=args.GIF_prob
-                                       )
+                                       GIF_prob=args.GIF_prob)
     else:
         raise NameError('invalid planner type')
-    # run the tests---------------------------------------------------------
 
     maps = tester.read_single_env(args.mapName)
     if maps is None:
