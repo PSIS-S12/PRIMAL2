@@ -94,7 +94,8 @@ tests_*
 __pycache__/
 results/
 .idea/
-primal2_testing_envs50/
-model*
+new_testing_envs/
+model_v1_oIL_no_prune/checkpoint
 .vscode/settings.json
-/testing_result
+
+/maps
