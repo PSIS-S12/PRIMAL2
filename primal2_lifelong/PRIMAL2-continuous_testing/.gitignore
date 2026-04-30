@@ -99,3 +99,5 @@ model_v1_oIL_no_prune/checkpoint
 .vscode/settings.json
 
 /maps
+/maps_40_dense/
+/maps_160_sparse/
