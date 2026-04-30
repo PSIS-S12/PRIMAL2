@@ -305,7 +305,7 @@ class OneShotTestsRunner:
 if __name__ == "__main__":
     import time
 
-    model_path = './model_astar10_continuous/'
+    model_path = '../../models/model_primal2_oneshot/'
     parser = argparse.ArgumentParser()
     parser.add_argument("--result_path", default="./testing_result/")
     parser.add_argument("--env_path", default='./primal2_testing_envs50/')
