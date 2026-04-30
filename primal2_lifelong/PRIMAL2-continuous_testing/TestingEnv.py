@@ -31,6 +31,19 @@ from Env_Builder import *
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore', category=Warning)
 
+def get_max_steps(map_name):
+    name = map_name.lower()
+
+    if "20" in name or "40" in name:
+        return 128
+    elif "80" in name:
+        return 192
+    elif "160" in name:
+        return 256
+
+    # fallback (important)
+    print(f"[WARN] Could not infer steps from name: {map_name}, defaulting to 256")
+    return 256
 
 def _is_movingai_only_maps(maps):
     """
@@ -375,34 +388,42 @@ class ContinuousTestsRunner:
         for _ in range(self.worker.num_agents):
             self.worker.agent_states.append(self.worker.network.state_init)
 
-
-
     def run_1_test(self, name, maps):
-        def get_maxLength(env_size):
-            if env_size <= 40:
-                return 128
-            elif env_size <= 80:
-                return 192
-            return 256
 
         if _is_movingai_only_maps(maps):
             self._apply_movingai_env(maps)
             state_shape = np.array(maps[0][0]).shape
         else:
-            self.worker._reset(map_generator=manual_generator(maps[0][0], maps[0][1]),
-                               worldInfo=maps)
+            self.worker._reset(
+                map_generator=manual_generator(maps[0][0], maps[0][1]),
+                worldInfo=maps
+            )
             state_shape = np.array(maps[0][0]).shape
 
         env_name = name[:name.rfind('.')]
-        env_size = int(state_shape[0])
-        max_length = get_maxLength(env_size)
+
+        # ✅ NEW: use paper logic instead of env_size
+        max_length = get_max_steps(env_name)
+
+        print(f"[INFO] working on {env_name}")
+        print(f"[INFO] map shape = {state_shape}, max_steps = {max_length}")
+
         results = dict()
 
-        print("working on " + env_name)
-
-        result = self.worker.find_path(max_length=int(max_length), saveImage=np.random.rand() < self.GIF_prob)
+        result = self.worker.find_path(
+            max_length=int(max_length),
+            saveImage=np.random.rand() < self.GIF_prob
+        )
 
         target_reached, computing_time_list, num_crash, episode_status, succeed_episode, step_count, frames = result
+
+        # ✅ DEBUG (important for verifying correctness)
+        total_time = sum(computing_time_list) if computing_time_list else 0
+        throughput = (target_reached / total_time) if total_time > 0 else 0
+
+        print(f"[RESULT] targets={target_reached}, steps={step_count}/{max_length}, time={total_time:.4f}")
+        print(f"[RESULT] throughput={throughput:.4f}, status={episode_status}")
+
         results['target_reached'] = target_reached
         results['computing time'] = computing_time_list
         results['num_crash'] = num_crash
@@ -412,6 +433,7 @@ class ContinuousTestsRunner:
 
         self.make_gif(frames, env_name, self.test_method)
         self.write_files(results, env_name, self.test_method)
+
         return
 
     def make_gif(self, image, env_name, ext):
