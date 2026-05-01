@@ -101,3 +101,5 @@ model_v1_oIL_no_prune/checkpoint
 /maps
 /maps_40_dense/
 /maps_160_sparse/
+/results_40_dense/
+/results_160_sparse/
