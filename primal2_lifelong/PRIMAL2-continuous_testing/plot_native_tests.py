@@ -1,10 +1,10 @@
+
 import os
 import json
 import re
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import matplotlib
-
 
 
 RESULTS_40 = "./results_40_dense"
@@ -119,64 +119,62 @@ for a in AGENTS:
 
 
 # -----------------------
-# FIGURE
+# PLOT 1 — Throughput 40x40
 # -----------------------
-fig = plt.figure(figsize=(14, 8))
-gs = fig.add_gridspec(3, 2)
-
-ax1 = fig.add_subplot(gs[0, 0])
-ax2 = fig.add_subplot(gs[1, 0])
-ax3 = fig.add_subplot(gs[2, 0])
-ax4 = fig.add_subplot(gs[0, 1])
-
-
-# -----------------------
-# PLOT 1 — 40x40
-# -----------------------
-ax1.plot(x, y40, marker="o")
-ax1.set_title("Throughput - 40x40")
-ax1.set_ylabel("Targets / timestep")
+fig1, ax1 = plt.subplots(figsize=(10, 6))
+ax1.plot(x, y40, marker="o", linewidth=2, markersize=8)
+ax1.set_title("Throughput - 40x40", fontsize=14, fontweight='bold')
+ax1.set_xlabel("Team Size", fontsize=12)
+ax1.set_ylabel("Targets / timestep", fontsize=12)
 set_log_scale(ax1)
 fix_ticks(ax1)
-ax1.grid(True)
+ax1.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
 
 
 # -----------------------
-# PLOT 2 — 160x160
+# PLOT 2 — Throughput 160x160
 # -----------------------
-ax2.plot(x, y160, marker="o")
-ax2.set_title("Throughput - 160x160")
-ax2.set_ylabel("Targets / timestep")
+fig2, ax2 = plt.subplots(figsize=(10, 6))
+ax2.plot(x, y160, marker="o", linewidth=2, markersize=8)
+ax2.set_title("Throughput - 160x160", fontsize=14, fontweight='bold')
+ax2.set_xlabel("Team Size", fontsize=12)
+ax2.set_ylabel("Targets / timestep", fontsize=12)
 set_log_scale(ax2)
 fix_ticks(ax2)
-ax2.grid(True)
+ax2.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
 
 
 # -----------------------
-# PLOT 3 — Planning time
+# PLOT 3 — Planning Time
 # -----------------------
-ax3.plot(x, yp, marker="o")
-ax3.set_title("Planning Time")
-ax3.set_xlabel("Team Size")
-ax3.set_ylabel("Time [s]")
+fig3, ax3 = plt.subplots(figsize=(10, 6))
+ax3.plot(x, yp, marker="o", linewidth=2, markersize=8, color='orange')
+ax3.set_title("Planning Time", fontsize=14, fontweight='bold')
+ax3.set_xlabel("Team Size", fontsize=12)
+ax3.set_ylabel("Time [s]", fontsize=12)
 set_log_scale(ax3)
 ax3.set_yscale("log")
 fix_ticks(ax3)
-ax3.grid(True)
+ax3.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
 
 
 # -----------------------
-# PLOT 4 — PRIMAL2
+# PLOT 4 — PRIMAL2 Throughput
 # -----------------------
-ax4.plot(x, y160, marker="o", label="PRIMAL2")
-ax4.set_title("Throughput (PRIMAL2)")
-ax4.set_xlabel("Team Size")
-ax4.set_ylabel("Targets / timestep")
+fig4, ax4 = plt.subplots(figsize=(10, 6))
+ax4.plot(x, y160, marker="o", linewidth=2, markersize=8, color='green', label="PRIMAL2")
+ax4.set_title("Throughput (PRIMAL2)", fontsize=14, fontweight='bold')
+ax4.set_xlabel("Team Size", fontsize=12)
+ax4.set_ylabel("Targets / timestep", fontsize=12)
 set_log_scale(ax4)
 fix_ticks(ax4)
-ax4.grid(True)
-ax4.legend()
-
-
+ax4.grid(True, alpha=0.3)
+ax4.legend(fontsize=11)
 plt.tight_layout()
 plt.show()
