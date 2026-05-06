@@ -11,6 +11,11 @@ from Map_Generator import maze_generator
 from parameters import *
 
 
+# Kjer agent doseže cilj (nisem našel kje se to zgodi...)
+# TODO (learn-to-follow): Resetiraj dinamične stroške, ko agent doseže cilj.
+# To prepreči kopičenje starih penalov, ki bi ovirali načrtovanje za nove cilje
+# self.congestion_map.fill(0)
+
 # helper functions
 def discount(x, gamma):
     return signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
@@ -19,6 +24,7 @@ def discount(x, gamma):
 class Worker():
     def __init__(self, metaAgentID, workerID, workers_per_metaAgent, env, localNetwork, sess, groupLock, learningAgent,
                  global_step):
+        # TODO (learn-to-follow): Inicializiraj congestion_map za beleženje zgodovine gneče. Ta matrika hrani število opažanj drugih agentov na specifičnih lokacijah
 
         self.metaAgentID = metaAgentID
         self.agentID = workerID
@@ -336,6 +342,9 @@ class Worker():
         '''
         Interacts with the environment. The agent gets either gradients or experience buffer
         '''
+        # TODO (learn-to-follow): Posodobi congestion_map na podlagi lokalnih opazovanj.
+        # Za vsakega sosednjega agenta v vidnem polju (FOV) povečaj vrednost v self.congestion_map[x, y] za 1.
+        # Intuitivno to kaznuje celice, ki jih sosedje pogosto uporabljajo
         self.currEpisode = currEpisode
 
         if COMPUTE_TYPE == COMPUTE_OPTIONS.multiThreaded:

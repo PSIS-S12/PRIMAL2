@@ -41,6 +41,9 @@ class Primal2Observer(ObservationBuilder):
 
     def _get(self, agent_id, all_astar_maps):
 
+        # TODO (learn-to-follow): Dodaj nov kanal v opazovanje (state), ki predstavlja lokalno gnečo.
+        # Izreži del self.congestion_map v velikosti observation_size okoli agenta in ga normaliziraj
+
         start_time = time.time()
 
         assert (agent_id > 0)
@@ -229,6 +232,10 @@ class Primal2Observer(ObservationBuilder):
         :return: a dict of 3D np arrays. Each astar_maps[agentID] is a num_future_steps * obs_size * obs_size matrix.
         """
 
+        # TODO (learn-to-follow & Conformant-CBS): Posodobi stroškovno funkcijo za A*.
+        # Namesto uniformne cene 1 uporabi: cost = pessimistic_time + lambda * congestion_penalty
+        # pessimistic_time pride iz Conformant-CBS.
+        # congestion_penalty pride iz self.congestion_map workerja
         def get_single_astar_path(distance_map, start_position, path_len):
             """
             :param distance_map:

@@ -72,7 +72,11 @@ def writeEpisodeRatio(global_summary, numIL, numRL, sess, curr_episode):
 def writeToTensorBoard(global_summary, tensorboardData, curr_episode, plotMeans=True):
     # each row in tensorboardData represents an episode
     # each column is a specific metric
-    
+
+    # TODO (learn-to-follow): Dodaj beleženje metrike za gnečo.
+    # Spremljaj 'Perf/Avg_Congestion_Penalty', da vidiš, če se agenti s časom naučijo
+    # boljšega razporejanja po prostoru (throughput)
+    summary.value.add(tag='Perf/Avg Congestion Penalty', simple_value=mean_congestion_penalty)
     if plotMeans == True:
         tensorboardData = np.array(tensorboardData)
         tensorboardData = list(np.mean(tensorboardData, axis=0))
