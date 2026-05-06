@@ -64,6 +64,8 @@ class Worker():
     def calculateGradient(self, rollout, bootstrap_value, episode_count, rnn_state0):
         # ([s,a,r,s1,v[0,0]])
 
+        # TODO: (Izboljšava iz Conformant-CBS)  Prilagodi izračun nagrad (rewards), če časovna negotovost vpliva na funkcijo koristnosti (npr. kazen za tvegana srečanja).
+
         rollout = np.array(rollout, dtype=object)
         observations = rollout[:, 0]
         goals = rollout[:, -3]
@@ -222,6 +224,8 @@ class Worker():
                         self.synchronize()
 
                         if self.agentID == 1:
+                            # TODO: (Izboljšava iz Conformant-CBS)  Zabeleži realen čas (npr. s števcem korakov), ki ga agent porabi
+                            # za premik med vozlišči, da izračunaš intervala L(e) in U(e).
                             all_obs, all_rewards = self.env.step_all(joint_actions[self.metaAgentID])
                             for i in range(1, self.num_workers + 1):
                                 joint_observations[self.metaAgentID][i] = all_obs[i]

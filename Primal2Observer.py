@@ -14,6 +14,8 @@ class Primal2Observer(ObservationBuilder):
 
     def __init__(self, observation_size=11, num_future_steps=3, printTime=False):
         super(Primal2Observer, self).__init__()
+        # TODO: (Izboljšava iz Conformant-CBS)  Dodaj parametre za pesimistično mejo.
+        # Ti parametri bodo določali, kako "razvlečeni" so intervali prisotnosti sosedov.
         self.observation_size = observation_size
         self.num_future_steps = num_future_steps
         self.NUM_CHANNELS = 8 + self.num_future_steps
@@ -67,7 +69,15 @@ class Primal2Observer(ObservationBuilder):
         other_agents = list(range(self.world.num_agents))  # needs to be 0-indexed for numpy magic below
         other_agents.remove(agent_id - 1)  # 0-indexing again
         astar_map_unpadded = np.zeros([self.num_future_steps, self.world.state.shape[0], self.world.state.shape[1]])
+
+        # TODO: (Izboljšava iz Conformant-CBS)  Posodobi astar_map tako, da namesto deterministične pozicije soseda v času T
+        # izrišeš "potencialno prisotnost" (Potential Presence) v časovnem oknu [L, U].
+        # Če se intervali sosedov prekrivajo z agentovim, naj bo vrednost v mapi višja.
         astar_map_unpadded[:self.num_future_steps, max(0, top_left[0]):min(bottom_right[0], self.world.state.shape[0]),
+
+        # TODO: (Izboljšava iz Conformant-CBS)  Namesto np.sum uporabi logiko iz CBS_TU (opisano v članku 9.2), kjer vsak korak soseda
+        # zasede več časovnih rezin (slices) v astar_map, sorazmerno z negotovostjo.
+        
         max(0, top_left[1]):min(bottom_right[1], self.world.state.shape[1])] = \
             np.sum(all_astar_maps[other_agents, :self.num_future_steps,
                    max(0, top_left[0]):min(bottom_right[0], self.world.state.shape[0]),

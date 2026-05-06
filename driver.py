@@ -2,9 +2,9 @@ import numpy as np
 import tensorflow as tf
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
-import ray
+import ray # Vzporedno poganjanje več simulacij hkrati
 
-from Ray_ACNet import ACNet
+from Ray_ACNet import ACNet # Actor-Critic arhitektura (VGG bloki, LSTM celica, rezidualne povezave)
 from Runner import imitationRunner, RLRunner
 
 from parameters import *
@@ -26,7 +26,8 @@ if not os.path.exists(gifs_path):
 
 
 global_step = tf.placeholder(tf.float32)
-        
+
+# Prilagodljiva učna stopnja (stabilnejša konvergenca)
 if ADAPT_LR:
     # computes LR_Q/sqrt(ADAPT_COEFF*steps+1)
     # we need the +1 so that lr at step 0 is defined
@@ -35,6 +36,7 @@ else:
     lr = tf.constant(LR_Q)
 
 
+# Sprejme izračunane gradiente posameznih agentov in posodovi uteži globalne nevronske mreže
 def apply_gradients(global_network, gradients, sess, curr_episode):
     feed_dict = {
         global_network.tempGradients[i]: g for i, g in enumerate(gradients)
@@ -43,13 +45,14 @@ def apply_gradients(global_network, gradients, sess, curr_episode):
 
     sess.run([global_network.apply_grads], feed_dict=feed_dict)
 
+# Beleženje statistike
 def writeImitationDataToTensorboard(global_summary, metrics, curr_episode):    
     summary = tf.Summary()
     summary.value.add(tag='Losses/Imitation loss', simple_value=metrics[0])
     global_summary.add_summary(summary, curr_episode)
     global_summary.flush()
 
-
+# Beleženje statistike
 def writeEpisodeRatio(global_summary, numIL, numRL, sess, curr_episode):
     summary = tf.Summary()
 
@@ -65,6 +68,7 @@ def writeEpisodeRatio(global_summary, numIL, numRL, sess, curr_episode):
 
     
 
+# Beleženje statistike.
 def writeToTensorBoard(global_summary, tensorboardData, curr_episode, plotMeans=True):
     # each row in tensorboardData represents an episode
     # each column is a specific metric
@@ -86,8 +90,8 @@ def writeToTensorBoard(global_summary, tensorboardData, curr_episode, plotMeans=
         
     summary = tf.Summary()
     
-    summary.value.add(tag='Perf/Reward', simple_value=mean_reward)
-    summary.value.add(tag='Perf/Targets Done', simple_value=mean_finishes)
+    summary.value.add(tag='Perf/Reward', simple_value=mean_reward) # Nagrade
+    summary.value.add(tag='Perf/Targets Done', simple_value=mean_finishes) # Št. doseženih ciljev
     summary.value.add(tag='Perf/Length', simple_value=mean_length)
     summary.value.add(tag='Perf/Valid Rate', simple_value=(mean_length - mean_invalid) / mean_length)
     summary.value.add(tag='Perf/Stop Rate', simple_value=(mean_stop) / mean_length)
@@ -107,6 +111,7 @@ def writeToTensorBoard(global_summary, tensorboardData, curr_episode, plotMeans=
     
 def main():
     with tf.device("/cpu:0"):
+        # Learning rate se s časom zmanjšuje
         trainer = tf.contrib.opt.NadamOptimizer(learning_rate=lr, use_locking=True)
         global_network = ACNet(GLOBAL_NET_SCOPE,a_size,trainer,False,NUM_CHANNEL, OBS_SIZE,GLOBAL_NET_SCOPE, GLOBAL_NETWORK=True)
 
@@ -131,8 +136,11 @@ def main():
 
         
         # launch all of the threads:
-    
+
+        # Agenti ki izvajajo posnemovalno učenje
         il_agents = [imitationRunner.remote(i) for i in range(NUM_IL_META_AGENTS)]
+
+        # Agenti ki izvajajo spodbujevalno učenje
         rl_agents = [RLRunner.remote(i) for i in range(NUM_IL_META_AGENTS, NUM_META_AGENTS)]
         meta_agents = il_agents + rl_agents
 
@@ -160,6 +168,7 @@ def main():
         numImitationEpisodes = 0
         numRLEpisodes = 0
         try:
+            # Glavna zanka učenja
             while True:
                 # wait for any job to be completed - unblock as soon as the earliest arrives
                 done_id, jobList = ray.wait(jobList)
