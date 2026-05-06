@@ -12,7 +12,7 @@ from setuptools.extension import Extension
 setup(
     name="astarlib",
     description="A* search algorithm implemented in Cython",
-#    long_description=open("README.md").read(),
+#    long_description=open("README_original.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/initbar/astarlib",
     author="Herbert Shin",
