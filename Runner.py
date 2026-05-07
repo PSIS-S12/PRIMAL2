@@ -27,6 +27,7 @@ class Runner(object):
         import tensorflow as tf
         
         num_agents = NUM_THREADS
+        # TODO: (Izboljšava iz Conformant-CBS)  Preveri, če je treba observerju podati statistične meje [L, U]za izračun pesimističnih A* poti drugih agentov.
         self.env = Primal2Env(num_agents=num_agents,
                               observer=Primal2Observer(observation_size=OBS_SIZE,
                                                         num_future_steps=NUM_FUTURE_STEPS),
@@ -95,6 +96,7 @@ class Runner(object):
                                   self.env, self.localNetwork,
                                   self.sess, groupLock, learningAgent=True, global_step=self.global_step))
 
+        # TODO: (Izboljšava iz Conformant-CBS) Tukaj zberi dejanske čase prehodov (execution times) iz workerjev, da posodobiš globalno statistiko o časovni negotovosti.
         for w in workers:
             groupLock.acquire(0, w.name)
             worker_work = lambda: w.work(episodeNumber, self.coord, self.saver, self.weightVars)

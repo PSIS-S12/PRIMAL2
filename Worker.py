@@ -11,6 +11,11 @@ from Map_Generator import maze_generator
 from parameters import *
 
 
+# Kjer agent doseže cilj (nisem našel kje se to zgodi...)
+# TODO (learn-to-follow): Resetiraj dinamične stroške, ko agent doseže cilj.
+# To prepreči kopičenje starih penalov, ki bi ovirali načrtovanje za nove cilje
+# self.congestion_map.fill(0)
+
 # helper functions
 def discount(x, gamma):
     return signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
@@ -19,6 +24,7 @@ def discount(x, gamma):
 class Worker():
     def __init__(self, metaAgentID, workerID, workers_per_metaAgent, env, localNetwork, sess, groupLock, learningAgent,
                  global_step):
+        # TODO (learn-to-follow): Inicializiraj congestion_map za beleženje zgodovine gneče. Ta matrika hrani število opažanj drugih agentov na specifičnih lokacijah
 
         self.metaAgentID = metaAgentID
         self.agentID = workerID
@@ -65,6 +71,8 @@ class Worker():
 
     def calculateGradient(self, rollout, bootstrap_value, episode_count, rnn_state0):
         # ([s,a,r,s1,v[0,0]])
+
+        # TODO: (Izboljšava iz Conformant-CBS)  Prilagodi izračun nagrad (rewards), če časovna negotovost vpliva na funkcijo koristnosti (npr. kazen za tvegana srečanja).
 
         rollout = np.array(rollout, dtype=object)
         observations = rollout[:, 0]
@@ -236,6 +244,8 @@ class Worker():
                         self.synchronize()
 
                         if self.agentID == 1:
+                            # TODO: (Izboljšava iz Conformant-CBS)  Zabeleži realen čas (npr. s števcem korakov), ki ga agent porabi
+                            # za premik med vozlišči, da izračunaš intervala L(e) in U(e).
                             all_obs, all_rewards = self.env.step_all(joint_actions[self.metaAgentID])
                             for i in range(1, self.num_workers + 1):
                                 joint_observations[self.metaAgentID][i] = all_obs[i]
@@ -350,6 +360,9 @@ class Worker():
         '''
         Interacts with the environment. The agent gets either gradients or experience buffer
         '''
+        # TODO (learn-to-follow): Posodobi congestion_map na podlagi lokalnih opazovanj.
+        # Za vsakega sosednjega agenta v vidnem polju (FOV) povečaj vrednost v self.congestion_map[x, y] za 1.
+        # Intuitivno to kaznuje celice, ki jih sosedje pogosto uporabljajo
         self.currEpisode = currEpisode
 
         if COMPUTE_TYPE == COMPUTE_OPTIONS.multiThreaded:

@@ -96,6 +96,10 @@ model_v1_oIL_no_prune/checkpoint
 /models
 /primal_env
 
+/od_mstar3/build
+/primal2_oneshot/PRIMAL2-oneshot_testing/od_mstar3/build
+/primal2_lifelong/PRIMAL2-continuous_testing/od_mstar3/build
+/primal2_lifelong/PRIMAL2-continuous_testing/astarlib3/build
 /primal2_oneshot/PRIMAL2-oneshot_testing/test_envs/
 /primal2_oneshot/PRIMAL2-oneshot_testing/testing_result/4agents_20size_0.3density_1wall_id0_oneshotmstar.txt
 /primal2_oneshot/PRIMAL2-oneshot_testing/testing_result/4agents_20size_0.3density_1wall_id1_oneshotmstar.txt
