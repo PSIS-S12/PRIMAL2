@@ -32,8 +32,10 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore', category=Warning)
 
 def get_max_steps(map_name):
+    return 256
     name = map_name.lower()
 
+'''
     if "20" in name or "40" in name:
         return 128
     elif "80" in name:
@@ -43,7 +45,7 @@ def get_max_steps(map_name):
 
     # fallback (important)
     print(f"[WARN] Could not infer steps from name: {map_name}, defaulting to 256")
-    return 256
+    '''
 
 def _is_movingai_only_maps(maps):
     """
