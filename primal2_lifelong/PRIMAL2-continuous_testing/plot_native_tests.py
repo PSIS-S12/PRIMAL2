@@ -1,4 +1,3 @@
-
 import os
 import json
 import re
@@ -6,11 +5,10 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import matplotlib
 
+BASELINE_RESULTS = "./results_50"
+HEATMAP_RESULTS  = "./results_50_hm"
 
-RESULTS_40 = "./results_40_dense"
-RESULTS_160 = "./results_160_sparse"
-
-AGENTS = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
+AGENTS = [4, 8, 16, 32, 64, 128]
 
 
 def extract_agents(filename):
@@ -21,10 +19,11 @@ def extract_agents(filename):
 def load_data(folder):
     throughput = defaultdict(list)
     planning = defaultdict(list)
+    crashes = defaultdict(list)
 
     if not os.path.exists(folder):
         print(f"[WARN] Missing folder: {folder}")
-        return {}, {}
+        return {}, {}, {}
 
     for file in os.listdir(folder):
         if not file.endswith(".txt"):
@@ -44,6 +43,7 @@ def load_data(folder):
 
         times = data.get("computing time", [])
         target = data.get("target_reached", 0)
+        num_crash = data.get("num_crash", 0)
         status = data.get("status", "")
 
         if not times:
@@ -51,10 +51,11 @@ def load_data(folder):
 
         steps = len(times)
 
-        # include timeouts as zero throughput
+        # timeout handling
         if status == "timeout":
             throughput[agents].append(0)
             planning[agents].append(None)
+            crashes[agents].append(num_crash)
             continue
 
         tp = target / steps
@@ -62,21 +63,24 @@ def load_data(folder):
 
         throughput[agents].append(tp)
         planning[agents].append(pt)
+        crashes[agents].append(num_crash)
 
-    # average
     tp_avg = {}
     pt_avg = {}
+    crash_avg = {}
 
     for a in AGENTS:
-        if a in throughput and throughput[a]:
+        if throughput[a]:
             tp_avg[a] = sum(throughput[a]) / len(throughput[a])
 
-        if a in planning:
-            valid = [v for v in planning[a] if v is not None]
-            if valid:
-                pt_avg[a] = sum(valid) / len(valid)
+        valid = [v for v in planning[a] if v is not None]
+        if valid:
+            pt_avg[a] = sum(valid) / len(valid)
 
-    return tp_avg, pt_avg
+        if crashes[a]:
+            crash_avg[a] = sum(crashes[a]) / len(crashes[a])
+
+    return tp_avg, pt_avg, crash_avg
 
 
 def map_to_agents(data):
@@ -95,86 +99,103 @@ def fix_ticks(ax):
     ax.set_xticklabels([str(v) for v in AGENTS])
 
 
-tp40, _ = load_data(RESULTS_40)
-tp160, pt160 = load_data(RESULTS_160)
+# -----------------------
+# LOAD DATA
+# -----------------------
+tp_base, pt_base, crash_base = load_data(BASELINE_RESULTS)
+tp_heat, pt_heat, crash_heat = load_data(HEATMAP_RESULTS)
 
 x = AGENTS
-y40 = map_to_agents(tp40)
-y160 = map_to_agents(tp160)
-yp = map_to_agents(pt160)
+
+y_base = map_to_agents(tp_base)
+y_heat = map_to_agents(tp_heat)
+
+p_base = map_to_agents(pt_base)
+p_heat = map_to_agents(pt_heat)
+
+c_base = map_to_agents(crash_base)
+c_heat = map_to_agents(crash_heat)
 
 
 # -----------------------
 # PRINT TABLE
 # -----------------------
 print("\n=== RESULTS ===")
-print(f"{'Agents':>8} | {'TP40':>8} | {'TP160':>8} | {'Plan[s]':>8}")
-print("-" * 40)
+print(f"{'Agents':>8} | {'TP Base':>10} | {'TP Heat':>10} | {'Crash Base':>12} | {'Crash Heat':>12}")
+print("-" * 70)
 
 for a in AGENTS:
-    print(f"{a:>8} | "
-          f"{(round(tp40.get(a, 0),3) if a in tp40 else '-'):>8} | "
-          f"{(round(tp160.get(a, 0),3) if a in tp160 else '-'):>8} | "
-          f"{(round(pt160.get(a, 0),3) if a in pt160 else '-'):>8}")
+    print(
+        f"{a:>8} | "
+        f"{(round(tp_base.get(a, 0),3) if a in tp_base else '-'):>10} | "
+        f"{(round(tp_heat.get(a, 0),3) if a in tp_heat else '-'):>10} | "
+        f"{(round(crash_base.get(a, 0),3) if a in crash_base else '-'):>12} | "
+        f"{(round(crash_heat.get(a, 0),3) if a in crash_heat else '-'):>12}"
+    )
 
 
 # -----------------------
-# PLOT 1 — Throughput 40x40
+# PLOT 1 — THROUGHPUT
 # -----------------------
 fig1, ax1 = plt.subplots(figsize=(10, 6))
-ax1.plot(x, y40, marker="o", linewidth=2, markersize=8)
-ax1.set_title("Throughput - 40x40", fontsize=14, fontweight='bold')
-ax1.set_xlabel("Team Size", fontsize=12)
-ax1.set_ylabel("Targets / timestep", fontsize=12)
+
+ax1.plot(x, y_base, marker="o", linewidth=2, markersize=8, label="Baseline")
+ax1.plot(x, y_heat, marker="s", linewidth=2, markersize=8, label="Heatmap")
+
+ax1.set_title("Throughput Comparison", fontsize=14, fontweight='bold')
+ax1.set_xlabel("Team Size")
+ax1.set_ylabel("Targets / timestep")
+
 set_log_scale(ax1)
 fix_ticks(ax1)
+
 ax1.grid(True, alpha=0.3)
+ax1.legend()
+
 plt.tight_layout()
 plt.show()
 
 
 # -----------------------
-# PLOT 2 — Throughput 160x160
+# PLOT 2 — PLANNING TIME
 # -----------------------
 fig2, ax2 = plt.subplots(figsize=(10, 6))
-ax2.plot(x, y160, marker="o", linewidth=2, markersize=8)
-ax2.set_title("Throughput - 160x160", fontsize=14, fontweight='bold')
-ax2.set_xlabel("Team Size", fontsize=12)
-ax2.set_ylabel("Targets / timestep", fontsize=12)
+
+ax2.plot(x, p_base, marker="o", linewidth=2, markersize=8, label="Baseline")
+ax2.plot(x, p_heat, marker="s", linewidth=2, markersize=8, label="Heatmap")
+
+ax2.set_title("Planning Time Comparison", fontsize=14, fontweight='bold')
+ax2.set_xlabel("Team Size")
+ax2.set_ylabel("Planning Time [s]")
+
 set_log_scale(ax2)
+ax2.set_yscale("log")
 fix_ticks(ax2)
+
 ax2.grid(True, alpha=0.3)
+ax2.legend()
+
 plt.tight_layout()
 plt.show()
 
 
 # -----------------------
-# PLOT 3 — Planning Time
+# PLOT 3 — COLLISIONS
 # -----------------------
 fig3, ax3 = plt.subplots(figsize=(10, 6))
-ax3.plot(x, yp, marker="o", linewidth=2, markersize=8, color='orange')
-ax3.set_title("Planning Time", fontsize=14, fontweight='bold')
-ax3.set_xlabel("Team Size", fontsize=12)
-ax3.set_ylabel("Time [s]", fontsize=12)
+
+ax3.plot(x, c_base, marker="o", linewidth=2, markersize=8, label="Baseline")
+ax3.plot(x, c_heat, marker="s", linewidth=2, markersize=8, label="Heatmap")
+
+ax3.set_title("Collision Comparison (num_crash)", fontsize=14, fontweight='bold')
+ax3.set_xlabel("Team Size")
+ax3.set_ylabel("Average Collisions")
+
 set_log_scale(ax3)
-ax3.set_yscale("log")
 fix_ticks(ax3)
+
 ax3.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
+ax3.legend()
 
-
-# -----------------------
-# PLOT 4 — PRIMAL2 Throughput
-# -----------------------
-fig4, ax4 = plt.subplots(figsize=(10, 6))
-ax4.plot(x, y160, marker="o", linewidth=2, markersize=8, color='green', label="PRIMAL2")
-ax4.set_title("Throughput (PRIMAL2)", fontsize=14, fontweight='bold')
-ax4.set_xlabel("Team Size", fontsize=12)
-ax4.set_ylabel("Targets / timestep", fontsize=12)
-set_log_scale(ax4)
-fix_ticks(ax4)
-ax4.grid(True, alpha=0.3)
-ax4.legend(fontsize=11)
 plt.tight_layout()
 plt.show()

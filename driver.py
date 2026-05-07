@@ -11,7 +11,12 @@ from parameters import *
 import random
 
 
-ray.init(num_cpus=1)
+ray.init(
+    num_cpus=14,   # leave ~2 cores for OS + Python overhead
+    num_gpus=0,
+    ignore_reinit_error=True,
+    include_dashboard=False
+)
 
 tf.reset_default_graph()
 print("Hello World")
@@ -108,7 +113,7 @@ def writeToTensorBoard(global_summary, tensorboardData, curr_episode, plotMeans=
 def main():
     with tf.device("/cpu:0"):
         trainer = tf.contrib.opt.NadamOptimizer(learning_rate=lr, use_locking=True)
-        global_network = ACNet(GLOBAL_NET_SCOPE,a_size,trainer,False,NUM_CHANNEL, OBS_SIZE,GLOBAL_NET_SCOPE, GLOBAL_NETWORK=True)
+        global_network = ACNet(GLOBAL_NET_SCOPE,a_size,trainer,False,NUM_CHANNEL, OBS_SIZE,MAP_H, MAP_W,GLOBAL_NET_SCOPE, GLOBAL_NETWORK=True)
 
         global_summary = tf.summary.FileWriter(train_path)
         saver = tf.train.Saver(max_to_keep=1)

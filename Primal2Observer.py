@@ -22,6 +22,21 @@ class Primal2Observer(ObservationBuilder):
     def set_world(self, world):
         super().set_env(world)
 
+    def _compute_global_heatmap(self):
+        H, W = self.world.state.shape
+        heatmap = np.zeros((H, W), dtype=np.float32)
+        for i in range(1, self.world.num_agents + 1):
+            pos = self.world.getPos(i)
+            if 0 <= pos[0] < H and 0 <= pos[1] < W:
+                heatmap[pos[0], pos[1]] = 1.0
+        # Downsample to exactly (H//2, W//2) to match the fixed placeholder shape
+        target_h, target_w = H // 2, W // 2
+        return heatmap[:target_h * 2:2, :target_w * 2:2]  # shape (H//2, W//2)
+
+    def get_global_heatmap(self):
+        """Public method called by Worker. Returns downsampled heatmap (H//2, W//2)."""
+        return self._compute_global_heatmap()
+
     def get_next_positions(self, agent_id):
         agent_pos = self.world.getPos(agent_id)
         positions = []

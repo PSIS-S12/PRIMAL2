@@ -40,7 +40,7 @@ class Runner(object):
         self.metaAgentID = metaAgentID
 
         trainer = None
-        self.localNetwork = ACNet(GLOBAL_NET_SCOPE,a_size,trainer,True,NUM_CHANNEL,OBS_SIZE,GLOBAL_NET_SCOPE=GLOBAL_NET_SCOPE, GLOBAL_NETWORK=False)
+        self.localNetwork = ACNet(GLOBAL_NET_SCOPE,a_size,trainer,True,NUM_CHANNEL,OBS_SIZE,MAP_H, MAP_W,GLOBAL_NET_SCOPE=GLOBAL_NET_SCOPE, GLOBAL_NETWORK=False)
         self.currEpisode = int(metaAgentID)
 
         self.global_step = tf.placeholder(tf.float32)
@@ -201,7 +201,7 @@ class Runner(object):
         return jobResults, metrics, info
 
 
-@ray.remote(num_cpus=1)
+@ray.remote(num_cpus=3)
 class RLRunner(Runner):
     def __init__(self, metaAgentID):        
         super().__init__(metaAgentID)

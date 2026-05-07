@@ -61,7 +61,7 @@ def run_1_test_wrapper(args, name):
     This approach avoids any multiprocessing issues with tensorflow
     """
 
-    s = "python TestingEnv.py -r {resume_testing} -g {GIF_prob} " \
+    s = "py -3.7 TestingEnv_H.py -r {resume_testing} -g {GIF_prob} " \
         + "-p {planner} -n {mapName} --env_path {env_path} --result_path {result_path}"
     s = s.format(
         resume_testing=args.resume_testing,

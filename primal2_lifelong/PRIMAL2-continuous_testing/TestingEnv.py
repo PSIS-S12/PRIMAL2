@@ -98,7 +98,7 @@ class RL_Planner(MAPFEnv):
         self.method = '_' + self.test_type + 'RL'
 
     def _set_tensorflow(self, model_path, gpu_fraction):
-        config = tf.ConfigProto(allow_soft_placement=True)
+        config = tf.ConfigProto(allow_soft_placement=True, device_count={"GPU": 0})
         config.gpu_options.allow_growth = True
         config.gpu_options.per_process_gpu_memory_fraction = gpu_fraction
         self.sess = tf.Session(config=config)

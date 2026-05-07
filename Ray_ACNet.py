@@ -21,15 +21,18 @@ def normalized_columns_initializer(std=1.0):
 
 
 class ACNet:
-    def __init__(self, scope, a_size, trainer, TRAINING, NUM_CHANNEL, OBS_SIZE, GLOBAL_NET_SCOPE, GLOBAL_NETWORK=False):
+    def __init__(self, scope, a_size, trainer, TRAINING, NUM_CHANNEL, OBS_SIZE, MAP_H, MAP_W, GLOBAL_NET_SCOPE, GLOBAL_NETWORK=False):
         with tf.variable_scope(str(scope) + '/qvalues'):
             self.trainer = trainer
             # The input size may require more work to fit the interface.
             self.inputs = tf.placeholder(shape=[None, NUM_CHANNEL, OBS_SIZE, OBS_SIZE], dtype=tf.float32)
             self.goal_pos = tf.placeholder(shape=[None, 3], dtype=tf.float32)
+            # Global heatmap placeholder - downsampled to (MAP_H//2, MAP_W//2)
+            self.heatmap_input = tf.placeholder(shape=[None, MAP_H // 2, MAP_W // 2, 1], dtype=tf.float32)
+            
             self.myinput = tf.transpose(self.inputs, perm=[0, 2, 3, 1])
             self.policy, self.value, self.state_out, self.state_in, self.state_init, self.valids = self._build_net(
-                self.myinput, self.goal_pos, RNN_SIZE, TRAINING, a_size)
+                self.myinput, self.goal_pos, self.heatmap_input, RNN_SIZE, TRAINING, a_size)
         if TRAINING:
             self.actions = tf.placeholder(shape=[None], dtype=tf.int32)
             self.actions_onehot = tf.one_hot(self.actions, a_size, dtype=tf.float32)
@@ -77,25 +80,26 @@ class ACNet:
             # Get gradients from local network using local losses and
             # normalize the gradients using clipping
             
+            # These go OUTSIDE if self.trainer: — compute always
             local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope + '/qvalues')
             self.gradients = tf.gradients(self.loss, local_vars)
             self.var_norms = tf.global_norm(local_vars)
             self.grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, GRAD_CLIP)
 
-            # Apply local gradients to global network
             global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, GLOBAL_NET_SCOPE + '/qvalues')
+
+            # apply_grads INSIDE if self.trainer: only
             if self.trainer:
                 self.apply_grads = self.trainer.apply_gradients(zip(self.grads, global_vars))
 
-
             self.local_vars = local_vars
-            
-            # now the gradients for imitation loss
+
+            # IL grads — OUTSIDE if self.trainer:
             self.i_gradients = tf.gradients(self.imitation_loss, local_vars)
             self.i_var_norms = tf.global_norm(local_vars)
             self.i_grads, self.i_grad_norms = tf.clip_by_global_norm(self.i_gradients, GRAD_CLIP)
 
-            # Apply local gradients to global network
+            # apply IL grads INSIDE if self.trainer: only
             if self.trainer:
                 self.apply_imitation_grads = self.trainer.apply_gradients(zip(self.i_grads, global_vars))
 
@@ -110,7 +114,7 @@ class ACNet:
             
         print("Hello World... From  " + str(scope))  # :)
 
-    def _build_net(self, inputs, goal_pos, RNN_SIZE, TRAINING, a_size):
+    def _build_net(self, inputs, goal_pos, heatmap_input, RNN_SIZE, TRAINING, a_size):
         def conv_mlp(inputs, kernal_size, output_size):
             inputs = tf.reshape(inputs, [-1, 1, kernal_size, 1])
             conv = layers.conv2d(inputs=inputs, padding="VALID", num_outputs=output_size,
@@ -141,13 +145,26 @@ class ACNet:
                               stride=1, data_format="NHWC", weights_initializer=w_init, activation_fn=None)
 
         flat = tf.nn.relu(layers.flatten(conv3))
+
+        # global heatmap stream: single conv with aggressive stride to keep it cheap
+        h_conv1 = layers.conv2d(inputs=heatmap_input, num_outputs=16,
+                                kernel_size=[5, 5], stride=4,
+                                padding="SAME", data_format="NHWC",
+                                weights_initializer=w_init,
+                                activation_fn=tf.nn.relu)
+        flat_global = layers.flatten(h_conv1)
+        flat_global = layers.fully_connected(flat_global, 32, activation_fn=tf.nn.relu)
+
         goal_layer = layers.fully_connected(inputs=goal_pos, num_outputs=GOAL_REPR_SIZE)
-        hidden_input = tf.concat([flat, goal_layer], 1)
+        hidden_input = tf.concat([flat, goal_layer, flat_global], 1)
+        hidden_projected = layers.fully_connected(inputs=hidden_input, 
+                                           num_outputs=RNN_SIZE, 
+                                           activation_fn=None)
         h1 = layers.fully_connected(inputs=hidden_input, num_outputs=RNN_SIZE)
         d1 = layers.dropout(h1, keep_prob=KEEP_PROB1, is_training=TRAINING)
         h2 = layers.fully_connected(inputs=d1, num_outputs=RNN_SIZE, activation_fn=None)
         d2 = layers.dropout(h2, keep_prob=KEEP_PROB2, is_training=TRAINING)
-        self.h3 = tf.nn.relu(d2 + hidden_input)
+        self.h3 = tf.nn.relu(d2 + hidden_projected)  # residual now works
         # Recurrent network for temporal dependencies
         lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_SIZE, state_is_tuple=True)
         c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)

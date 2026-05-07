@@ -41,10 +41,12 @@ class Worker():
         # [o[0],o[1],optimal_actions]
 
         temp_actions = np.stack(rollout[:, 2])
+        heatmaps_stacked = np.array(list(rollout[:, 4]), dtype=np.float32)[:, :, :, np.newaxis]
         rnn_state = self.local_AC.state_init
         feed_dict = {self.global_step             : episode_count,
                      self.local_AC.inputs         : np.stack(rollout[:, 0]),
                      self.local_AC.goal_pos       : np.stack(rollout[:, 1]),
+                     self.local_AC.heatmap_input   : heatmaps_stacked,
                      self.local_AC.optimal_actions: np.stack(rollout[:, 2]),
                      self.local_AC.state_in[0]    : rnn_state[0],
                      self.local_AC.state_in[1]    : rnn_state[1],
@@ -66,14 +68,15 @@ class Worker():
 
         rollout = np.array(rollout, dtype=object)
         observations = rollout[:, 0]
-        goals = rollout[:, -3]
+        goals = rollout[:, -4]
         actions = rollout[:, 1]
         rewards = rollout[:, 2]
         values = rollout[:, 4]
         valids = rollout[:, 5]
-        train_value = rollout[:, -2]
-        train_policy = rollout[:, -1]
-
+        train_value = rollout[:, -3]
+        train_policy = rollout[:, -2]
+        heatmaps = rollout[:, -1]
+        heatmaps_stacked = np.array(list(heatmaps), dtype=np.float32)[:, :, :, np.newaxis]
         # Here we take the rewards and values from the rollout, and use them to
         # generate the advantage and discounted returns. (With bootstrapping)
         # The advantage function uses "Generalized Advantage Estimation"
@@ -91,6 +94,7 @@ class Worker():
             self.local_AC.target_v    : np.stack(discounted_rewards),
             self.local_AC.inputs      : np.stack(observations),
             self.local_AC.goal_pos    : np.stack(goals),
+            self.local_AC.heatmap_input  : heatmaps_stacked,
             self.local_AC.actions     : actions,
             self.local_AC.train_valid : np.stack(valids),
             self.local_AC.advantages  : advantages,
@@ -190,12 +194,22 @@ class Worker():
                     # start RL
                     self.env.finished = False
                     while not self.env.finished:
+                        # Agent 1 computes the shared heatmap once per step for all agents
+                        if self.agentID == 1:
+                            _hm = self.env.observer.get_global_heatmap().copy()
+                            joint_observations[self.metaAgentID][0] = _hm  # slot 0 reserved for heatmap
+                        self.synchronize()  # ensure heatmap is written before others read it
+
+                        # All agents read the shared heatmap
+                        heatmap = joint_observations[self.metaAgentID][0]
+                        heatmap_feed = heatmap[np.newaxis, :, :, np.newaxis]  # (1, H//2, W//2, 1)
+
                         a_dist, v, rnn_state = self.sess.run([self.local_AC.policy,
                                                               self.local_AC.value,
                                                               self.local_AC.state_out],
                                                              feed_dict={self.local_AC.inputs     : [s[0]],  # state
                                                                         self.local_AC.goal_pos   : [s[1]],
-                                                                        # goal vector
+                                                                        self.local_AC.heatmap_input  : heatmap_feed,
                                                                         self.local_AC.state_in[0]: rnn_state[0],
                                                                         self.local_AC.state_in[1]: rnn_state[1]})
 
@@ -240,9 +254,10 @@ class Worker():
                         self.synchronize()
                         # Append to Appropriate buffers 
                         if not skipping_state:
+                            # reuse the heatmap cached at the top of this step - no second call needed
                             episode_buffer.append(
                                 [s[0], a, joint_rewards[self.metaAgentID][self.agentID], s1, v[0, 0], train_valid, s[1],
-                                 train_val, train_policy])
+                                 train_val, train_policy, heatmap])
                             episode_values.append(v[0, 0])
                         episode_reward += r
                         episode_step_count += 1
@@ -269,9 +284,12 @@ class Worker():
                                 targets_done += 1
 
                             else:
+                                # reuse the heatmap cached at the top of this step
+                                heatmap_feed = heatmap[np.newaxis, :, :, np.newaxis]
                                 s1Value = self.sess.run(self.local_AC.value,
                                                         feed_dict={self.local_AC.inputs     : np.array([s[0]]),
                                                                    self.local_AC.goal_pos   : [s[1]],
+                                                                   self.local_AC.heatmap_input : heatmap_feed,
                                                                    self.local_AC.state_in[0]: rnn_state[0],
                                                                    self.local_AC.state_in[1]: rnn_state[1]})[0, 0]
 
@@ -393,9 +411,11 @@ class Worker():
                     actions[agent_id] = dir2action(diff)
 
                 all_obs, _ = self.env.step_all(actions)
+                # compute heatmap once per step, shared across all agents
+                heatmap = self.env.observer.get_global_heatmap().copy()
                 for i in range(self.num_workers):
                     agent_id = i + 1
-                    result[i].append([o[agent_id][0], o[agent_id][1], actions[agent_id], train_imitation[agent_id]])
+                    result[i].append([o[agent_id][0], o[agent_id][1], actions[agent_id], train_imitation[agent_id], heatmap])
                     if self.env.world.agents[agent_id].status == 1:
                         completed_agents.append(i)
                         targets_done += 1
