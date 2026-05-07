@@ -14,6 +14,8 @@ class Primal2Observer(ObservationBuilder):
 
     def __init__(self, observation_size=11, num_future_steps=3, printTime=False):
         super(Primal2Observer, self).__init__()
+        # TODO: (Izboljšava iz Conformant-CBS)  Dodaj parametre za pesimistično mejo.
+        # Ti parametri bodo določali, kako "razvlečeni" so intervali prisotnosti sosedov.
         self.observation_size = observation_size
         self.num_future_steps = num_future_steps
         self.NUM_CHANNELS = 8 + self.num_future_steps
@@ -38,6 +40,9 @@ class Primal2Observer(ObservationBuilder):
         return positions
 
     def _get(self, agent_id, all_astar_maps):
+
+        # TODO (learn-to-follow): Dodaj nov kanal v opazovanje (state), ki predstavlja lokalno gnečo.
+        # Izreži del self.congestion_map v velikosti observation_size okoli agenta in ga normaliziraj
 
         start_time = time.time()
 
@@ -67,7 +72,15 @@ class Primal2Observer(ObservationBuilder):
         other_agents = list(range(self.world.num_agents))  # needs to be 0-indexed for numpy magic below
         other_agents.remove(agent_id - 1)  # 0-indexing again
         astar_map_unpadded = np.zeros([self.num_future_steps, self.world.state.shape[0], self.world.state.shape[1]])
+
+        # TODO: (Izboljšava iz Conformant-CBS)  Posodobi astar_map tako, da namesto deterministične pozicije soseda v času T
+        # izrišeš "potencialno prisotnost" (Potential Presence) v časovnem oknu [L, U].
+        # Če se intervali sosedov prekrivajo z agentovim, naj bo vrednost v mapi višja.
         astar_map_unpadded[:self.num_future_steps, max(0, top_left[0]):min(bottom_right[0], self.world.state.shape[0]),
+
+        # TODO: (Izboljšava iz Conformant-CBS)  Namesto np.sum uporabi logiko iz CBS_TU (opisano v članku 9.2), kjer vsak korak soseda
+        # zasede več časovnih rezin (slices) v astar_map, sorazmerno z negotovostjo.
+        
         max(0, top_left[1]):min(bottom_right[1], self.world.state.shape[1])] = \
             np.sum(all_astar_maps[other_agents, :self.num_future_steps,
                    max(0, top_left[0]):min(bottom_right[0], self.world.state.shape[0]),
@@ -219,6 +232,10 @@ class Primal2Observer(ObservationBuilder):
         :return: a dict of 3D np arrays. Each astar_maps[agentID] is a num_future_steps * obs_size * obs_size matrix.
         """
 
+        # TODO (learn-to-follow & Conformant-CBS): Posodobi stroškovno funkcijo za A*.
+        # Namesto uniformne cene 1 uporabi: cost = pessimistic_time + lambda * congestion_penalty
+        # pessimistic_time pride iz Conformant-CBS.
+        # congestion_penalty pride iz self.congestion_map workerja
         def get_single_astar_path(distance_map, start_position, path_len):
             """
             :param distance_map:

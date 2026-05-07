@@ -49,15 +49,3 @@ In the one-shot scenario, agent will 'disappear'(i.e., removed from the env). Fo
 [Emerson Wenzel](emersonwenzel@gmail.com)
 
 [Guillaume Sartoretti](guillaume.sartoretti@gmail.com)
-
----
-
-# Rezultati eksperimenta na isti mapi
-
-| Timesteps | Št. agentov | Collisions | Time [s] | Targets reached |
-| :--- | :--- | :--- | :--- | :--- |
-| 256 | 8 | 0 | 6.4207 | 8 |
-| 256 | 16 | 20 | 11.9306 | 16 |
-| 256 | 32 | 57 | 25.9975 | 32 |
-| 256 | 64 | 166 | 47.5801 | 68 |
-| 256 | 128 | 1165 | 83.7680 | 134 |
