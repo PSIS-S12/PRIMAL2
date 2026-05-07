@@ -1,0 +1,39 @@
+{
+  "results": [
+    {
+      "timesteps": 256,
+      "agents": 8,
+      "collisions": 0,
+      "time_seconds": 6.4207,
+      "targets_reached": 8
+    },
+    {
+      "timesteps": 256,
+      "agents": 16,
+      "collisions": 20,
+      "time_seconds": 11.9306,
+      "targets_reached": 16
+    },
+    {
+      "timesteps": 256,
+      "agents": 32,
+      "collisions": 57,
+      "time_seconds": 25.9975,
+      "targets_reached": 32
+    },
+    {
+      "timesteps": 256,
+      "agents": 64,
+      "collisions": 166,
+      "time_seconds": 47.5801,
+      "targets_reached": 68
+    },
+    {
+      "timesteps": 256,
+      "agents": 128,
+      "collisions": 1165,
+      "time_seconds": 83.7680,
+      "targets_reached": 134
+    }
+  ]
+}
