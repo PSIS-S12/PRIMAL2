@@ -52,12 +52,22 @@ In the one-shot scenario, agent will 'disappear'(i.e., removed from the env). Fo
 
 ---
 
-# Rezultati eksperimenta na isti mapi
+# Rezultati eksperimenta PRIMAL2 na isti mapi
 
-| Timesteps | Št. agentov | Collisions | Time [s] | Targets reached |
-| :--- | :--- | :--- | :--- | :--- |
-| 256 | 8 | 0 | 6.4207 | 8 |
-| 256 | 16 | 20 | 11.9306 | 16 |
-| 256 | 32 | 57 | 25.9975 | 32 |
-| 256 | 64 | 166 | 47.5801 | 68 |
-| 256 | 128 | 1165 | 83.7680 | 134 |
+| Timesteps | Št. agentov | Collisions | Time [s] | Targets reached | Throughput
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 256 | 8 | 0 | 1.9471 | 11 | 0.0429 |
+| 256 | 16 | 0 | 4.1682 | 28 | 0.109 |
+| 256 | 32 | 36 | 6.8824 | 54 | 0.211 |
+| 256 | 64 | 191 | 11.6797 | 88 | 0.343 |
+| 256 | 128 | 1918 | 22.1256 | 164 | 0.641 |
+
+# Rezultati eksperimenta PRIMAL2 + heatmap na isti mapi
+
+| Timesteps | Št. agentov | Collisions | Time [s] | Targets reached | Throughput
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 256 | 8 | 0 | 2.0482 | 13 | 0.051 |
+| 256 | 16 | 6 | 4.4310 | 30 | 0.117 |
+| 256 | 32 | 24 | 7.8846 | 52 | 0.203 |
+| 256 | 64 | 135 | 12.1807 | 94 | 0.367 |
+| 256 | 128 | 603 | 23.0150 | 154 | 0.601 |
